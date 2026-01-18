@@ -1,0 +1,34 @@
+import pymc as pm
+import arviz as az
+
+# 1. Preparazione dei dati: Standardizzazione
+# Calcoliamo media e deviazione standard per grassland e vineyards
+def standardize(series):
+    return (series - series.mean()) / series.std()
+
+G_std = standardize(df['grassland'])
+V_std = standardize(df['vineyards'])
+
+# 2. Definizione del modello PyMC
+with pm.Model() as model:
+    # Priors (le distribuzioni a priori fornite dalla traccia)
+    a = pm.Normal('a', mu=0, sigma=1)
+    b = pm.Normal('b', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1.0)
+    
+    # Formula della media: mu = a + b * V
+    # Usiamo i valori standardizzati di vineyards (V)
+    mu = a + b * V_std.values
+    
+    # Likelihood (la distribuzione dei dati osservati)
+    # Osserviamo i valori standardizzati di grassland
+    likelihood = pm.Normal('likelihood', mu=mu, sigma=sigma, observed=G_std.values)
+    
+    # 3. Campionamento (Inference)
+    # draws=1000 è lo standard, chains=2 per avere un confronto
+    trace = pm.sample(1000, return_inferencedata=True, progressbar=False)
+
+# 4. Stampa del riassunto statistico
+print("\nSummary of the Bayesian Estimation:")
+summary = az.summary(trace)
+print(summary)
