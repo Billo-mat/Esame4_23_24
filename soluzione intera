@@ -1,0 +1,163 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import math
+import numpy as np
+
+df = pd.read_csv('bird_data.csv', index_col='transect_ID')
+df['organic'] = df['organic'].astype(bool)
+df['alternate_management'] = df['alternate_management'].astype(bool)
+
+
+
+# Exercise 2: Scatterplot using Matplotlib only
+plt.figure(figsize=(10, 6))
+
+# Loop through each unique subarea to plot them separately with their own color
+for subarea in df['subarea'].unique():
+    subset = df[df['subarea'] == subarea]
+    plt.scatter(subset['X'], subset['Y'], label=subarea, alpha=0.7)
+
+# Adding titles and labels
+plt.title('Birds Population: X vs Y by Subarea', fontsize=14)
+plt.xlabel('x coordinate')
+plt.ylabel('y coordinate')
+
+# Add the legend
+plt.legend(title='Subarea', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+plt.tight_layout()
+plt.show()
+
+
+df = pd.read_csv('bird_data.csv') #ricarico il df senza l'indice
+
+def weighted_distance(p1: tuple[float, float], p2: tuple[float, float], weight:float) -> float:
+    """
+    Calcola la distanza pesata tra due punti in un piano cartesiano 2D.
+    La formula è: d = w * sqrt((x1-x2)^2 + (y1-y2)^2)
+
+    >>> weighted_distance((0.0, 0.0), (3.0, 4.0), 1.0)
+    5.0
+    """
+    # Calcolo della distanza
+    dist = weight * np.sqrt(((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2))
+    return float(dist) if np.isscalar(dist) else dist
+
+# Per eseguire il test contenuto nella docstring (opzionale):
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod() 
+
+def compute_avg_weighted_dist(group: pd.DataFrame) -> pd.Series:
+    N = len(group)
+    if N <= 1:
+        return pd.Series(0.0, index=group.index)
+
+    x = group['X'].to_numpy()
+    y = group['Y'].to_numpy()
+
+    # Coordinate in forma vettoriale
+    p1 = (x[:, None], y[:, None])
+    p2 = (x[None, :], y[None, :])
+ 
+    dist_matrix = weighted_distance(p1, p2, 1.0)
+    avg_dist = dist_matrix.sum(axis=1) / (N - 1)
+
+    return pd.Series(avg_dist, index=group.index)
+
+df['avg_dist_same'] = (
+    df.groupby(['subarea'], group_keys=False)
+      .apply(compute_avg_weighted_dist, include_groups=False)
+    )
+
+# Questo "spalma" la media dell'area su tutte le righe appartenenti a quell'area
+df['avg_subarea_dist'] = df.groupby('subarea')['avg_dist_same'].transform('mean')
+
+print(df.head())
+
+
+# ### Exercise 6
+plt.figure(figsize=(15, 10))
+
+# 1. Calcoliamo le frequenze dei valori
+counts = df['functional_insectivores_species'].value_counts()
+
+# 2. Creiamo il grafico a torta
+plt.pie(counts, 
+        labels=counts.index,      # I numeri delle specie diventano le etichette
+        autopct='%1.1f%%',        # Formattazione percentuale: 1 cifra decimale
+        startangle=180,           # Ruota il grafico per una migliore prospettiva
+        colors=plt.cm.Paired.colors) # Opzionale: set di colori coordinati
+
+# 3. Titolo e rifiniture
+plt.title('Distribution of Functional Insectivores Species', fontsize=14, pad = 30)
+plt.axis('equal')  # Assicura che la torta sia un cerchio perfetto e non un'ellisse
+
+# Se sei nel tuo PC, usa plt.show()
+# Se devi consegnare il file, plt.savefig('pie_chart.png') è spesso preferito
+plt.show()
+
+
+
+# Ordiniamo le specie per avere una legenda ordinata
+species_list = sorted(df['seed_eater_species'].unique())
+
+# Cicliamo su ogni specie per creare gli istogrammi sovrapposti
+for species in species_list:
+    subset = df[df['seed_eater_species'] == species]
+    
+    # density=True crea l'istogramma di densità
+    # alpha=0.5 rende i colori trasparenti per vedere le sovrapposizioni
+    plt.hist(subset['grassland'], 
+             bins=15, 
+             alpha=0.5, 
+             density=True, 
+             label=f'Specie {species}')
+
+# Aggiungiamo titoli e label con il padding richiesto
+plt.title('Density of Grassland by Seed Eater Species', fontsize=14, pad=25)
+plt.xlabel('Grassland Density Value')
+plt.ylabel('Probability Density')
+
+# Legenda per distinguere i colori
+plt.legend(title='Seed Eater Species')
+
+plt.tight_layout()
+plt.show()
+
+
+import pymc as pm
+import arviz as az
+
+# 1. Preparazione dei dati: Standardizzazione
+# Calcoliamo media e deviazione standard per grassland e vineyards
+def standardize(series):
+    return (series - series.mean()) / series.std()
+
+G_std = standardize(df['grassland'])
+V_std = standardize(df['vineyards'])
+
+# 2. Definizione del modello PyMC
+with pm.Model() as model:
+    # Priors (le distribuzioni a priori fornite dalla traccia)
+    a = pm.Normal('a', mu=0, sigma=1)
+    b = pm.Normal('b', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1.0)
+    
+    # Formula della media: mu = a + b * V
+    # Usiamo i valori standardizzati di vineyards (V)
+    mu = a + b * V_std.values
+    
+    # Likelihood (la distribuzione dei dati osservati)
+    # Osserviamo i valori standardizzati di grassland
+    likelihood = pm.Normal('likelihood', mu=mu, sigma=sigma, observed=G_std.values)
+    
+    # 3. Campionamento (Inference)
+    # draws=1000 è lo standard, chains=2 per avere un confronto
+    trace = pm.sample(1000, return_inferencedata=True, progressbar=False)
+
+# 4. Stampa del riassunto statistico
+print("\nSummary of the Bayesian Estimation:")
+summary = az.summary(trace)
+print(summary)
+
