@@ -1,0 +1,7 @@
+import pandas as pd
+
+df = pd.read_csv('bird_data.csv', index_col='transect_ID')
+df['organic'] = df['organic'].astype(bool)
+df['alternate_management'] = df['alternate_management'].astype(bool)
+
+print(df.info())
