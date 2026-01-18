@@ -1,0 +1,26 @@
+
+# Ordiniamo le specie per avere una legenda ordinata
+species_list = sorted(df['seed_eater_species'].unique())
+
+# Cicliamo su ogni specie per creare gli istogrammi sovrapposti
+for species in species_list:
+    subset = df[df['seed_eater_species'] == species]
+    
+    # density=True crea l'istogramma di densità
+    # alpha=0.5 rende i colori trasparenti per vedere le sovrapposizioni
+    plt.hist(subset['grassland'], 
+             bins=15, 
+             alpha=0.5, 
+             density=True, 
+             label=f'Specie {species}')
+
+# Aggiungiamo titoli e label con il padding richiesto
+plt.title('Density of Grassland by Seed Eater Species', fontsize=14, pad=25)
+plt.xlabel('Grassland Density Value')
+plt.ylabel('Probability Density')
+
+# Legenda per distinguere i colori
+plt.legend(title='Seed Eater Species')
+
+plt.tight_layout()
+plt.show()
