@@ -1,0 +1,20 @@
+# ### Exercise 6
+plt.figure(figsize=(15, 10))
+
+# 1. Calcoliamo le frequenze dei valori
+counts = df['functional_insectivores_species'].value_counts()
+
+# 2. Creiamo il grafico a torta
+plt.pie(counts, 
+        labels=counts.index,      # I numeri delle specie diventano le etichette
+        autopct='%1.1f%%',        # Formattazione percentuale: 1 cifra decimale
+        startangle=180,           # Ruota il grafico per una migliore prospettiva
+        colors=plt.cm.Paired.colors) # Opzionale: set di colori coordinati
+
+# 3. Titolo e rifiniture
+plt.title('Distribution of Functional Insectivores Species', fontsize=14, pad = 30)
+plt.axis('equal')  # Assicura che la torta sia un cerchio perfetto e non un'ellisse
+
+# Se sei nel tuo PC, usa plt.show()
+# Se devi consegnare il file, plt.savefig('pie_chart.png') è spesso preferito
+plt.show()
