@@ -1,0 +1,1 @@
+df['avg_subarea_dist'] = df.groupby('subarea')['avg_dist_same'].transform('mean')
